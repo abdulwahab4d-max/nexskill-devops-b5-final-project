@@ -14,9 +14,7 @@ A simple microservices-based URL shortener built with Python, Node.js, and React
 - Node.js 18+
 - PostgreSQL (remote database provided)
 
-## Database Configuration
-
-The application connects to a shared PostgreSQL database with the following credentials:
+## Database Credentials
 ```
 Host: 8.222.170.22
 Port: 5432
@@ -25,17 +23,21 @@ User: postgres
 Password: postgres
 ```
 
-These are configured as defaults in the services, but can be overridden using environment variables.
+**Note:** These credentials are needed to be configured in:
+- `link-service/config.py`
+- `analytics-service/config.js`
+
+These changes are needed to use the correct database.
 
 ## Setup and Run
 
 ### 1. Link Service
 ```bash
 cd link-service
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python app.py
+python3 -m venv .
+. ./bin/activate
+pip3 install -r requirements.txt
+python3 app.py
 ```
 
 Runs on: http://localhost:3000
@@ -63,28 +65,7 @@ npm start
 
 Runs on: http://localhost:3000 (React dev server)
 
-## Environment Variables
-
-### Link Service
-- `DB_HOST` - Database host (default: 8.222.170.22)
-- `DB_PORT` - Database port (default: 5432)
-- `DB_NAME` - Database name (default: urlshortener)
-- `DB_USER` - Database user (default: postgres)
-- `DB_PASSWORD` - Database password (default: postgres)
-- `ANALYTICS_SERVICE_URL` - Analytics service URL (default: http://localhost:4000)
-- `PORT` - Service port (default: 3000)
-
-### Analytics Service
-- `DB_HOST` - Database host (default: 8.222.170.22)
-- `DB_PORT` - Database port (default: 5432)
-- `DB_NAME` - Database name (default: urlshortener)
-- `DB_USER` - Database user (default: postgres)
-- `DB_PASSWORD` - Database password (default: postgres)
-- `PORT` - Service port (default: 4000)
-
-### Frontend
-- `REACT_APP_LINK_SERVICE_URL` - Link service URL
-- `REACT_APP_ANALYTICS_SERVICE_URL` - Analytics service URL
+**Note:** 3000 is the default port, however the Link Service uses the same port. In such a case, frontend will prompt to use a different port
 
 ## Testing
 
@@ -106,14 +87,3 @@ Runs on: http://localhost:3000 (React dev server)
 - `POST /api/track` - Track a click
 - `GET /api/analytics/:short_code` - Get analytics for specific link
 - `GET /api/analytics` - Get all analytics
-
-## Project Structure
-```
-.
-├── link-service/          # Python/Flask service
-├── analytics-service/     # Node.js/Express service
-├── frontend/              # React application
-├── terraform/             # Infrastructure as code (for deployment)
-├── .github/workflows/     # CI/CD pipelines (for deployment)
-└── monitoring/            # Monitoring configuration (for deployment)
-```
