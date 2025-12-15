@@ -1,0 +1,37 @@
+# Python
+link-service/venv/
+link-service/__pycache__/
+link-service/*.pyc
+link-service/.env
+
+# Node.js
+analytics-service/node_modules/
+analytics-service/.env
+
+# React
+frontend/node_modules/
+frontend/build/
+frontend/.env
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local

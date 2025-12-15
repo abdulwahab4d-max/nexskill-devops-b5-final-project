@@ -1,0 +1,132 @@
+.App {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.App-header {
+  padding: 2rem;
+  text-align: center;
+  color: white;
+}
+
+.App-header h1 {
+  margin: 0;
+  font-size: 2.5rem;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.create-section {
+  background: white;
+  border-radius: 10px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.create-section h2 {
+  margin-top: 0;
+  color: #333;
+}
+
+form {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+input[type="url"] {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+button {
+  padding: 0.75rem 2rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background: #5568d3;
+}
+
+.error {
+  color: #e74c3c;
+  padding: 0.5rem;
+  background: #fadbd8;
+  border-radius: 5px;
+}
+
+.result {
+  padding: 1rem;
+  background: #d4edda;
+  border-radius: 5px;
+  margin-top: 1rem;
+}
+
+.result a {
+  color: #155724;
+  font-weight: bold;
+  word-break: break-all;
+}
+
+.links-section {
+  background: white;
+  border-radius: 10px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.links-section h2 {
+  margin-top: 0;
+  color: #333;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.url-cell {
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+tr:hover {
+  background: #f8f9fa;
+}
+
+a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
