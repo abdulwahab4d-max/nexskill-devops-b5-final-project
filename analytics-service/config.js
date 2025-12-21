@@ -1,3 +1,4 @@
+# configure these 4 values from repository secret
 module.exports = {
     database: {
         host: process.env.DB_HOST || '<DB_HOST>',
