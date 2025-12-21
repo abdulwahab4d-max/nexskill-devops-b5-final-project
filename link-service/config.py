@@ -1,5 +1,6 @@
 import os
 
+# configure these 4 values from repository secret
 class Config:
     DATABASE_HOST = os.getenv('DB_HOST', '<DB_HOST>')
     DATABASE_PORT = os.getenv('DB_PORT', '5432')
