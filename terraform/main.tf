@@ -55,6 +55,9 @@ resource "aws_subnet" "private_2" {
 # ----------------------------
 # Route Tables
 # ----------------------------
+# ----------------------------
+# Public Route Table
+# ----------------------------
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
@@ -77,6 +80,31 @@ resource "aws_route_table_association" "public_2_assoc" {
 }
 
 # ----------------------------
+# Private Route Table
+# ----------------------------
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+
+  tags = { Name = "private-rt" }
+}
+
+resource "aws_route_table_association" "private_1_assoc" {
+  subnet_id      = aws_subnet.private_1.id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_route_table_association" "private_2_assoc" {
+  subnet_id      = aws_subnet.private_2.id
+  route_table_id = aws_route_table.private.id
+}
+
+
+# ----------------------------
 # NAT Gateway (for private subnets)
 # ----------------------------
 resource "aws_eip" "nat" {
@@ -89,24 +117,6 @@ resource "aws_nat_gateway" "nat" {
   tags          = { Name = "nat-gateway" }
 }
 
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat.id
-  }
-}
-
-resource "aws_route_table_association" "private_1_assoc" {
-  subnet_id      = aws_subnet.private_1.id
-  route_table_id = aws_route_table.private.id
-}
-
-resource "aws_route_table_association" "private_2_assoc" {
-  subnet_id      = aws_subnet.private_2.id
-  route_table_id = aws_route_table.private.id
-}
 
 # ----------------------------
 # Security Groups
@@ -143,6 +153,14 @@ resource "aws_security_group" "ecs_sg" {
     security_groups = [aws_security_group.alb_sg.id]
   }
 
+  # Self-ingress for tasks using awsvpc
+  ingress {
+    from_port = 0
+    to_port   = 65535
+    protocol  = "tcp"
+    self      = true
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -150,6 +168,7 @@ resource "aws_security_group" "ecs_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
 
 # ----------------------------
 # ALB
@@ -162,13 +181,13 @@ resource "aws_lb" "alb" {
   enable_deletion_protection = false
 }
 
-# Target Group for awsvpc (use "ip" target type!)
+# Target Group (for bridge network mode, use instance target type)
 resource "aws_lb_target_group" "tg" {
-  name        = "node-tg-ec2-awsvpc"
+  name        = "node-tg-ec2"
   port        = 80
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
-  target_type = "ip"   # ✅ important for awsvpc tasks
+  target_type = "ip"  # EC2 tasks use instance targets
 
   health_check {
     path                = "/"
@@ -196,7 +215,7 @@ resource "aws_lb_listener" "http" {
 # ECS Cluster
 # ----------------------------
 resource "aws_ecs_cluster" "main" {
-  name = "node-ec2-cluster-awsvpc"
+  name = "node-ec2-cluster"
 }
 
 # ----------------------------
@@ -207,7 +226,11 @@ resource "aws_iam_role" "ecs_instance_role" {
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [ { Effect = "Allow", Principal = { Service = "ec2.amazonaws.com" }, Action = "sts:AssumeRole" } ]
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
   })
 }
 
@@ -216,9 +239,69 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_attach" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
 }
 
+resource "aws_iam_role_policy_attachment" "ecs_instance_attach_extra" {
+  role       = aws_iam_role.ecs_instance_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole"
+}
+
 resource "aws_iam_instance_profile" "ecs_profile" {
   role = aws_iam_role.ecs_instance_role.name
 }
+
+
+#EC2 remote access
+
+resource "aws_iam_role" "ecs_task_role" {
+  name = "ecsTaskRole"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+resource "aws_iam_role_policy_attachment" "ecs_exec" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_exec_ssm" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+# CloudWatch
+
+resource "aws_iam_role" "ecs_execution_role" {
+  name = "ecsExecutionRole"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+resource "aws_iam_role_policy_attachment" "ecs_execution_attach" {
+  role       = aws_iam_role.ecs_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+resource "aws_iam_role_policy_attachment" "ecs_logs" {
+  role       = aws_iam_role.ecs_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+}
+resource "aws_cloudwatch_log_group" "ecs_node" {
+  name              = "/ecs/node-ec2-cluster"
+  retention_in_days = 7
+}
+
+
+
 
 # ----------------------------
 # ECS EC2 Instances (Launch Template + ASG)
@@ -235,7 +318,7 @@ data "aws_ami" "ecs" {
 
 resource "aws_launch_template" "ecs" {
   image_id      = data.aws_ami.ecs.id
-  instance_type = "t3.micro"
+  instance_type = "t3.small"
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_profile.name
@@ -244,6 +327,8 @@ resource "aws_launch_template" "ecs" {
   user_data = base64encode(<<-EOT
 #!/bin/bash
 echo "ECS_CLUSTER=${aws_ecs_cluster.main.name}" >> /etc/ecs/ecs.config
+echo "ECS_LOGLEVEL=debug" >> /etc/ecs/ecs.config
+echo "ECS_RESERVED_MEMORY=512" >> /etc/ecs/ecs.config
 EOT
   )
 
@@ -253,10 +338,10 @@ EOT
 }
 
 resource "aws_autoscaling_group" "ecs" {
-  desired_capacity     = 1
-  min_size             = 1
-  max_size             = 1
-  vpc_zone_identifier  = [aws_subnet.private_1.id, aws_subnet.private_2.id]
+  desired_capacity   = 1
+  min_size           = 1
+  max_size           = 1
+  vpc_zone_identifier = [aws_subnet.private_1.id, aws_subnet.private_2.id]
 
   launch_template {
     id      = aws_launch_template.ecs.id
@@ -264,26 +349,77 @@ resource "aws_autoscaling_group" "ecs" {
   }
 }
 
+
 # ----------------------------
-# ECS Task Definition (awsvpc)
+# ECS Task Definition
 # ----------------------------
 resource "aws_ecs_task_definition" "node" {
-  family                   = "node-task-ec2-awsvpc"
+  family                   = "node-task-ec2"
   requires_compatibilities = ["EC2"]
-  network_mode             = "awsvpc"  # ✅ changed from bridge
-  cpu                      = "256"
+  network_mode             = "awsvpc"
+  cpu                      = "512"
   memory                   = "512"
 
-  container_definitions = jsonencode([{
-    name      = "node-app"
-    image     = "docker.io/abdulwahab4d/url-shorten-final-project:frontend-latest"
-    essential = true
-    portMappings = [{
-      containerPort = 80
-      protocol      = "tcp"
-    }]
-  }])
+  task_role_arn      = aws_iam_role.ecs_task_role.arn
+  execution_role_arn = aws_iam_role.ecs_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "frontend"
+      image     = "docker.io/abdulwahab4d/url-shorten-final-project:frontend-latest"
+      essential = true
+
+      portMappings = [{
+        containerPort = 80
+        protocol      = "tcp"
+      }]
+
+      environment = [
+        {
+          name  = "LINK_SERVICE_URL"
+          value = "http://localhost:3000"
+        }
+      ]
+
+      dependsOn = [
+        {
+          containerName = "link-service"
+          condition     = "START"
+        }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/node-ec2-cluster"
+          awslogs-region        = "eu-north-1"
+          awslogs-stream-prefix = "frontend"
+        }
+      }
+    },
+    {
+      name      = "link-service"
+      image     = "docker.io/abdulwahab4d/url-shorten-final-project:link-service-latest"
+      essential = true
+
+      portMappings = [{
+        containerPort = 3000
+        protocol      = "tcp"
+      }]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/node-ec2-cluster"
+          awslogs-region        = "eu-north-1"
+          awslogs-stream-prefix = "link-service"
+        }
+      }
+    }
+  ])
 }
+
+
 
 # ----------------------------
 # ECS Service (awsvpc)
@@ -294,8 +430,9 @@ resource "aws_ecs_service" "node" {
   task_definition = aws_ecs_task_definition.node.arn
   desired_count   = 1
   launch_type     = "EC2"
+  enable_execute_command = true
 
-  network_configuration {   # ✅ required for awsvpc
+  network_configuration {
     subnets         = [aws_subnet.private_1.id, aws_subnet.private_2.id]
     security_groups = [aws_security_group.ecs_sg.id]
     assign_public_ip = false
@@ -303,7 +440,7 @@ resource "aws_ecs_service" "node" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.tg.arn
-    container_name   = "node-app"
+    container_name   = "frontend"
     container_port   = 80
   }
 
