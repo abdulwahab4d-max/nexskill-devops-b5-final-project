@@ -420,11 +420,10 @@ window._env_ = {
 EOT
 }
 
-resource "aws_s3_bucket_object" "frontend_config" {
+resource "aws_s3_object" "frontend_config" {
   bucket       = "terraform-bucket-aw123"      # your existing bucket
   key          = "frontend/app.js"          # path in bucket
   content      = data.template_file.frontend_config.rendered
-  acl          = "public-read"
   content_type = "application/javascript"
 
   depends_on = [aws_lb.alb]  # ensure ALB exists first

@@ -20,7 +20,14 @@ RUN npm run build
 # ---------- Production stage ----------
 FROM nginx:alpine
 
-# Remove default nginx config
+# Install AWS CLI v2
+RUN apk add --no-cache curl unzip bash \
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip" \
+    && unzip /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/aws /tmp/awscliv2.zip
+
+# Remove default nginx html
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copy build output
@@ -29,6 +36,5 @@ COPY --from=build /app/build /usr/share/nginx/html
 # Expose port 80
 EXPOSE 80
 
-# Start nginx
-# At container start, replace placeholder with ALB backend URL
-CMD ["/bin/sh", "-c", "envsubst < /usr/share/nginx/html/config.template.js > /usr/share/nginx/html/config.js && nginx -g 'daemon off;'"]
+# Runtime command: copy config from S3 then start nginx
+CMD ["/bin/sh","-c","aws s3 cp s3://terraform-bucket-aw123/frontend/app.js /usr/share/nginx/htmlapp.js && nginx -g 'daemon off;'"]
