@@ -10,9 +10,12 @@ RUN npm install
 # Copy source
 COPY . .
 
+# Build-time argument for backend URL
+ARG REACT_APP_LINK_SERVICE_URL
+ENV REACT_APP_LINK_SERVICE_URL=$REACT_APP_LINK_SERVICE_URL
+
 # Build React app
 RUN npm run build
-
 
 # ---------- Production stage ----------
 FROM nginx:alpine
@@ -27,4 +30,5 @@ COPY --from=build /app/build /usr/share/nginx/html
 EXPOSE 80
 
 # Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# At container start, replace placeholder with ALB backend URL
+CMD ["/bin/sh", "-c", "envsubst < /usr/share/nginx/html/config.template.js > /usr/share/nginx/html/config.js && nginx -g 'daemon off;'"]
