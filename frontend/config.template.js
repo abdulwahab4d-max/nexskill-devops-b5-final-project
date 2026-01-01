@@ -1,0 +1,3 @@
+window._env_ = {
+  LINK_SERVICE_URL: "$REACT_APP_LINK_SERVICE_URL"
+};
