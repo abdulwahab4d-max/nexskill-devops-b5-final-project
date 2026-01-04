@@ -4,6 +4,7 @@ import './App.css';
 const LINK_SERVICE_URL = "/api";
 const ANALYTICS_SERVICE_URL = process.env.REACT_APP_ANALYTICS_SERVICE_URL || 'http://analytics-service:4000';
 
+
 function App() {
   const [url, setUrl] = useState('');
   const [shortUrl, setShortUrl] = useState('');
@@ -130,5 +131,9 @@ function App() {
     </div>
   );
 }
+
+app.listen(3000, '0.0.0.0', () => {
+  console.log('Link-service running on port 3000');
+});
 
 export default App;
