@@ -170,7 +170,7 @@ resource "aws_security_group" "ecs_sg" {
 }
 
 
-  # Container-to-container
+  # Container-to-container Communication
   ingress {
     description = "Internal ECS"
     from_port   = 0
@@ -295,7 +295,7 @@ resource "aws_lb_listener_rule" "link_rule" {
 }
 
 # ----------------------------
-# ECS Cluster
+# ECS EC2 Cluster
 # ----------------------------
 resource "aws_ecs_cluster" "main" {
   name = "node-ec2-cluster"
