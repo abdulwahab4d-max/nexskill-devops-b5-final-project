@@ -13,6 +13,13 @@ jobs:
       # Checkout repository
       - name: Checkout code
         uses: actions/checkout@v2
+              # ----------------------------
+      # Install Terraform
+      # ----------------------------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.14.3
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
