@@ -53,11 +53,20 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/url-shorten-final-project:analytics-service-ci-${{ github.run_number }}
           docker push ${{ secrets.DOCKER_USERNAME }}/url-shorten-final-project:analytics-service-latest
       - name: Get Terraform outputs
+        id: tf
         run: |
-          LINK_SERVICE_URL=$(terraform output -raw link_service_alb_url)
-          ANALYTICS_SERVICE_URL=$(terraform output -raw analytics_service_alb_url)
+          # Get clean Terraform outputs
+          LINK_SERVICE_URL=$(terraform output -raw link_service_alb_url | tr -d '\r')
+          ANALYTICS_SERVICE_URL=$(terraform output -raw analytics_service_alb_url | tr -d '\r')
+
+          # Make sure we actually have values
+          echo "LINK_SERVICE_URL=$LINK_SERVICE_URL"
+          echo "ANALYTICS_SERVICE_URL=$ANALYTICS_SERVICE_URL"
+
+          # Export to GitHub Actions environment
           echo "REACT_APP_LINK_SERVICE_URL=$LINK_SERVICE_URL" >> $GITHUB_ENV
           echo "REACT_APP_ANALYTICS_SERVICE_URL=$ANALYTICS_SERVICE_URL" >> $GITHUB_ENV
+
 
       - name: Build frontend
         run: |
