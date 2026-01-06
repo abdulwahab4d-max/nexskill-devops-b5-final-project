@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
-// Hardcode the ALB URLs
 const LINK_SERVICE_URL = "http://node-alb-1662863529.eu-north-1.elb.amazonaws.com/api/links";
 const ANALYTICS_SERVICE_URL = "http://node-alb-1662863529.eu-north-1.elb.amazonaws.com/api/analytics";
-
-
 
 
 function App() {
@@ -14,27 +11,32 @@ function App() {
   const [links, setLinks] = useState([]);
   const [analytics, setAnalytics] = useState([]);
   const [error, setError] = useState('');
+
+// Define functions first
+const fetchLinks = async () => {
+  try {
+    const response = await fetch(`${LINK_SERVICE_URL}/api/links`);
+    const data = await response.json();
+    setLinks(data);
+  } catch (err) {
+    console.error('Error fetching links:', err);
+  }
+};
+
+const fetchAnalytics = async () => {
+  try {
+    const response = await fetch(`${ANALYTICS_SERVICE_URL}/api/analytics`);
+    const data = await response.json();
+    setAnalytics(data);
+  } catch (err) {
+    console.error('Error fetching analytics:', err);
+  }
+};
+
+// Then call them in useEffect
 useEffect(() => {
-  // Fetch main data
   fetchLinks();
   fetchAnalytics();
-
-  // Fetch health endpoints for logging
-  const fetchHealth = async () => {
-    try {
-      const linkHealthRes = await fetch(`${LINK_SERVICE_URL}/health`);
-      const linkHealthData = await linkHealthRes.json();
-      console.log("Link Service Health:", linkHealthData);
-
-      const analyticsHealthRes = await fetch(`${ANALYTICS_SERVICE_URL}/health`);
-      const analyticsHealthData = await analyticsHealthRes.json();
-      console.log("Analytics Service Health:", analyticsHealthData);
-    } catch (err) {
-      console.error("Error fetching health:", err);
-    }
-  };
-
-  fetchHealth();
 }, []);
 
 
