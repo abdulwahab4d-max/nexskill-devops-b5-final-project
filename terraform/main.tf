@@ -526,7 +526,7 @@ resource "aws_ecs_task_definition" "link_service" {
   container_definitions = jsonencode([
     {
       name      = "link-service"
-      image     = "docker.io/abdulwahab4d/url-shorten-final-project:link-service-latest"
+      image     = "docker.io/abdulwahab4d/url-shorten-final-project:link-service--ci-${GITHUB_RUN_NUMBER}"
       essential = true
       portMappings = [{
         containerPort = 3000
@@ -574,7 +574,7 @@ resource "aws_ecs_task_definition" "frontend" {
   container_definitions = jsonencode([
     {
       name      = "frontend"
-      image     = "docker.io/abdulwahab4d/url-shorten-final-project:frontend-latest"
+      image     = "docker.io/abdulwahab4d/url-shorten-final-project:frontend--ci-${GITHUB_RUN_NUMBER}"
       essential = true
       portMappings = [{
         containerPort = 80
@@ -582,7 +582,7 @@ resource "aws_ecs_task_definition" "frontend" {
       environment = [
         {
           name  = "LINK_SERVICE_URL"
-          value = "http://link-service.internal:3000"
+          value = "http://node-alb-1662863529.eu-north-1.elb.amazonaws.com/api/links"
         }
       ]
       logConfiguration = {
@@ -610,7 +610,7 @@ resource "aws_ecs_task_definition" "analytics" {
   container_definitions = jsonencode([
     {
       name      = "analytics"
-      image     = "docker.io/abdulwahab4d/url-shorten-final-project:analytics-service-latest"
+      image     = "docker.io/abdulwahab4d/url-shorten-final-project:analytics-service--ci-${GITHUB_RUN_NUMBER}"
       essential = true
       portMappings = [{
         containerPort = 4000
