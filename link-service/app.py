@@ -1,40 +1,66 @@
-# link_service.py
-import os
-import hashlib
+from flask import Flask, request, jsonify, redirect
+from flask_cors import CORS
 import psycopg2
+import hashlib
 import requests
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
+from config import Config
 
-# ---------------------------
-# Load environment variables
-# ---------------------------
+import os
+import time
+import psycopg2
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import string
+import random
 from dotenv import load_dotenv
-load_dotenv()
 
-DB_HOST = os.environ.get("DB_HOST")
-DB_PORT = os.environ.get("DB_PORT", "5432")
-DB_NAME = os.environ.get("DB_NAME")
-DB_USER = os.environ.get("DB_USER")
-DB_PASSWORD = os.environ.get("DB_PASSWORD")
+load_dotenv()  # This loads variables from .env into os.environ
 
-ANALYTICS_SERVICE_URL = os.environ.get("ANALYTICS_SERVICE_URL", "")
 
-if not all([DB_HOST, DB_NAME, DB_USER, DB_PASSWORD]):
-    raise RuntimeError("Database environment variables are missing!")
+
+app = Flask(__name__)
+CORS(app)
+
+from fastapi import FastAPI
+
+app = FastAPI(openapi_prefix="/api/links")  # <-- handles /api/links/*
+
+@app.get("/")
+def health():
+    return []
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/some-endpoint")
+def some_endpoint():
+    return {"message": "Hello from link-service!"}
 
 # ---------------------------
-# Database functions
+# Configuration
+# ---------------------------
+DB_RETRY_COUNT = int(os.getenv("DB_RETRY_COUNT", 10))
+DB_RETRY_DELAY = int(os.getenv("DB_RETRY_DELAY", 5))
+
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("5432")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+
+# ---------------------------
+# Database Functions
 # ---------------------------
 def get_db_connection():
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        database=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD
+    conn = psycopg2.connect(
+        host=Config.DATABASE_HOST,
+        port=Config.DATABASE_PORT,
+        database=Config.DATABASE_NAME,
+        user=Config.DATABASE_USER,
+        password=Config.DATABASE_PASSWORD
     )
+    return conn
 
 def init_db():
     conn = get_db_connection()
@@ -51,50 +77,27 @@ def init_db():
     cur.close()
     conn.close()
 
-def generate_short_code(url: str) -> str:
+def generate_short_code(url):
     return hashlib.md5(url.encode()).hexdigest()[:6]
 
-# ---------------------------
-# FastAPI app
-# ---------------------------
-app = FastAPI(openapi_prefix="/api/links")
-
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-# ---------------------------
-# Startup event: initialize DB
-# ---------------------------
-@app.on_event("startup")
-def startup_event():
-    init_db()
-
-# ---------------------------
-# Health check
-# ---------------------------
-@app.get("/health")
+@app.route('/health', methods=['GET'])
 def health():
-    return {"status": "ok"}
+    return jsonify({'status': 'healthy'}), 200
 
-# ---------------------------
-# Shorten URL
-# ---------------------------
-@app.post("/shorten")
-def shorten_url(payload: dict):
-    original_url = payload.get("url")
+@app.route('/api/shorten', methods=['POST'])
+def shorten_url():
+    data = request.json
+    original_url = data.get('url')
+    
     if not original_url:
-        raise HTTPException(status_code=400, detail="URL is required")
+        return jsonify({'error': 'URL is required'}), 400
     
     short_code = generate_short_code(original_url)
     
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        
         cur.execute('SELECT short_code FROM links WHERE original_url = %s', (original_url,))
         existing = cur.fetchone()
         
@@ -109,16 +112,13 @@ def shorten_url(payload: dict):
         
         cur.close()
         conn.close()
-        return {"short_code": short_code, "short_url": f"/{short_code}"}
-    
+        
+        return jsonify({'short_code': short_code, 'short_url': f'/{short_code}'}), 201
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return jsonify({'error': str(e)}), 500
 
-# ---------------------------
-# Redirect short URL
-# ---------------------------
-@app.get("/{short_code}")
-def redirect_url(short_code: str):
+@app.route('/<short_code>', methods=['GET'])
+def redirect_url(short_code):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -127,43 +127,42 @@ def redirect_url(short_code: str):
         cur.close()
         conn.close()
         
-        if not result:
-            raise HTTPException(status_code=404, detail="URL not found")
-        
-        original_url = result[0]
-        
-        # Notify analytics service asynchronously
-        if ANALYTICS_SERVICE_URL:
+        if result:
+            original_url = result[0]
+            
             try:
                 requests.post(
-                    f'{ANALYTICS_SERVICE_URL}/api/track',
+                    f'{Config.ANALYTICS_SERVICE_URL}/api/track',
                     json={'short_code': short_code},
                     timeout=2
                 )
             except:
                 pass
-        
-        return RedirectResponse(original_url)
-    
+            
+            return redirect(original_url)
+        else:
+            return jsonify({'error': 'URL not found'}), 404
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return jsonify({'error': str(e)}), 500
 
-# ---------------------------
-# List all links
-# ---------------------------
-@app.get("/")
+@app.route('/api/links', methods=['GET'])
 def get_all_links():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute('SELECT original_url, short_code, created_at FROM links ORDER BY created_at DESC')
-        rows = cur.fetchall()
+        links = cur.fetchall()
         cur.close()
         conn.close()
         
-        return [
-            {"original_url": r[0], "short_code": r[1], "created_at": r[2].isoformat()}
-            for r in rows
-        ]
+        return jsonify([{
+            'original_url': link[0],
+            'short_code': link[1],
+            'created_at': link[2].isoformat()
+        } for link in links]), 200
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    init_db()
+    app.run(host='0.0.0.0', port=3000)
