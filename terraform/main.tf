@@ -297,10 +297,26 @@ resource "aws_lb_listener_rule" "link_rule" {
 
   condition {
     path_pattern {
+      values = ["/api/shorten"]
+    }
+  }
+}
+resource "aws_lb_listener_rule" "links_rule" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 15  # Make sure this priority is unique and between existing ones
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.link_tg.arn
+  }
+
+  condition {
+    path_pattern {
       values = ["/api/links/*"]
     }
   }
 }
+
 
 # Analytics
 resource "aws_lb_target_group" "analytics_tg" {
@@ -701,6 +717,10 @@ resource "aws_ecs_service" "analytics" {
 # Outputs
 # ----------------------------
 output "link_service_alb_url" {
+  value = "http://${aws_lb.alb.dns_name}/api/shorten"
+}
+
+output "link_service_alb_url_link" {
   value = "http://${aws_lb.alb.dns_name}/api/links"
 }
 

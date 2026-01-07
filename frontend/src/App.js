@@ -4,7 +4,6 @@ import './App.css';
 const LINK_SERVICE_URL = "/api";
 const ANALYTICS_SERVICE_URL = process.env.REACT_APP_ANALYTICS_SERVICE_URL || 'http://analytics-service:4000';
 
-
 function App() {
   const [url, setUrl] = useState('');
   const [shortUrl, setShortUrl] = useState('');
@@ -15,12 +14,6 @@ function App() {
   useEffect(() => {
     fetchLinks();
     fetchAnalytics();
-  }, []);
-  useEffect(() => {
-    fetch("/links/health")
-    fetch("/analytics/health")
-    .then(res => res.json())
-    .then(data => console.log(data));
   }, []);
 
   const fetchLinks = async () => {
@@ -137,6 +130,3 @@ function App() {
     </div>
   );
 }
-
-
-export default App;
