@@ -17,15 +17,15 @@ function App() {
     fetchAnalytics();
   }, []);
   useEffect(() => {
-    fetch("/api/links/health")
-    fetch("/api/analytics/health")
+    fetch("/links/health")
+    fetch("/analytics/health")
     .then(res => res.json())
     .then(data => console.log(data));
   }, []);
 
   const fetchLinks = async () => {
     try {
-      const response = await fetch(`${LINK_SERVICE_URL}/api/links`);
+      const response = await fetch(`${LINK_SERVICE_URL}/links`);
       const data = await response.json();
       setLinks(data);
     } catch (err) {
@@ -35,7 +35,7 @@ function App() {
 
   const fetchAnalytics = async () => {
     try {
-      const response = await fetch(`${ANALYTICS_SERVICE_URL}/api/analytics`);
+      const response = await fetch(`${ANALYTICS_SERVICE_URL}/analytics`);
       const data = await response.json();
       setAnalytics(data);
     } catch (err) {
@@ -49,7 +49,7 @@ function App() {
     setShortUrl('');
 
     try {
-      const response = await fetch(`${LINK_SERVICE_URL}/api/shorten`, {
+      const response = await fetch(`${LINK_SERVICE_URL}/shorten`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
