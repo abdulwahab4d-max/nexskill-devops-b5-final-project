@@ -643,6 +643,24 @@ resource "aws_ecs_task_definition" "analytics" {
           awslogs-stream-prefix = "analytics"
         }
       }
+      secrets = [ 
+        {
+          name      = "DB_HOST"
+          valueFrom = "arn:aws:secretsmanager:eu-north-1:828798301136:secret:urlshortener-db-secret-pGfNMn:DB_HOST::"
+        },
+        {
+          name      = "DB_NAME"
+          valueFrom = "arn:aws:secretsmanager:eu-north-1:828798301136:secret:urlshortener-db-secret-pGfNMn:DB_NAME::"
+        },
+        {
+          name      = "DB_USER"
+          valueFrom = "arn:aws:secretsmanager:eu-north-1:828798301136:secret:urlshortener-db-secret-pGfNMn:DB_USER::"
+        },
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = "arn:aws:secretsmanager:eu-north-1:828798301136:secret:urlshortener-db-secret-pGfNMn:DB_PASSWORD::"
+        }
+       ]
     }
   ])
 }
