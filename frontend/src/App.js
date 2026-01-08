@@ -52,7 +52,7 @@ function App() {
       const data = await response.json();
       
       if (response.ok) {
-        setShortUrl(`${LINK_SERVICE_URL}${data.short_url}`);
+        setShortUrl(`${window.location.origin}${data.short_url}`);
         setUrl('');
         fetchLinks();
       } else {
