@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
-const LINK_SERVICE_URL = "/api";
+const LINK_SERVICE_URL = "";
 const ANALYTICS_SERVICE_URL = "/api/analytics";
 
 
@@ -19,7 +19,7 @@ function App() {
 
   const fetchLinks = async () => {
     try {
-      const response = await fetch(`${LINK_SERVICE_URL}/links`);
+      const response = await fetch(`${LINK_SERVICE_URL}/api/links`);
       const data = await response.json();
       setLinks(data);
     } catch (err) {
@@ -43,7 +43,7 @@ function App() {
     setShortUrl('');
 
     try {
-      const response = await fetch(`${LINK_SERVICE_URL}/shorten`, {
+      const response = await fetch(`${LINK_SERVICE_URL}/api/shorten`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
