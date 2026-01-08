@@ -7,7 +7,7 @@ class Config:
     DATABASE_NAME = os.getenv('DB_NAME', '<DB_NAME>')
     DATABASE_USER = os.getenv('DB_USER', '<DB_USER>')
     DATABASE_PASSWORD = os.getenv('DB_PASSWORD', '<DB_PASSWORD>')
-     ANALYTICS_SERVICE_URL = os.getenv(
+    ANALYTICS_SERVICE_URL = os.getenv(
         "ANALYTICS_SERVICE_URL",
         "http://analytics:4000"
     )
