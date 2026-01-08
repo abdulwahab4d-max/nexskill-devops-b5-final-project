@@ -52,7 +52,7 @@ function App() {
       const data = await response.json();
       
       if (response.ok) {
-        setShortUrl(`${window.location.origin}${data.short_url}`);
+        setShortUrl(`${LINK_SERVICE_URL}/api/links/${data.short_url}`);
         setUrl('');
         fetchLinks();
       } else {
@@ -115,7 +115,7 @@ function App() {
               {links.map((link) => (
                 <tr key={link.short_code}>
                   <td>
-                    <a href={`${LINK_SERVICE_URL}/${link.short_code}`} target="_blank" rel="noopener noreferrer">
+                    <a href={`${LINK_SERVICE_URL}/api/links/${link.short_code}`} target="_blank" rel="noopener noreferrer">
                       {link.short_code}
                     </a>
                   </td>
