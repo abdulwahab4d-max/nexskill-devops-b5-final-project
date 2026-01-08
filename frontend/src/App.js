@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 
 const LINK_SERVICE_URL = "/api";
-const ANALYTICS_SERVICE_URL = "/api";
+const ANALYTICS_SERVICE_URL = "/api/analytics";
 
 
 function App() {
@@ -29,7 +29,7 @@ function App() {
 
   const fetchAnalytics = async () => {
     try {
-      const response = await fetch(`${ANALYTICS_SERVICE_URL}/analytics`);
+      const response = await fetch(ANALYTICS_SERVICE_URL);
       const data = await response.json();
       setAnalytics(data);
     } catch (err) {
