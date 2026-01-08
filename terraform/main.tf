@@ -209,7 +209,6 @@ resource "aws_security_group" "rds_sg" {
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [aws_security_group.ecs_sg.id]
-    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -274,7 +273,7 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# Link-Service
+# Link-Service Target Group
 resource "aws_lb_target_group" "link_tg" {
   name        = "link-service-tg"
   port        = 3000
@@ -286,24 +285,11 @@ resource "aws_lb_target_group" "link_tg" {
     path = "/health"
   }
 }
+
+# Link-Service Listener Rule
 resource "aws_lb_listener_rule" "link_rule" {
   listener_arn = aws_lb_listener.http.arn
-  priority     = 10
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.link_tg.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/api/shorten"]
-    }
-  }
-}
-resource "aws_lb_listener_rule" "links_rule" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 15  # Make sure this priority is unique and between existing ones
+  priority     = 10  # Must be unique
 
   action {
     type             = "forward"
@@ -313,16 +299,15 @@ resource "aws_lb_listener_rule" "links_rule" {
   condition {
     path_pattern {
       values = [
+        "/api/shorten",
         "/api/links",
         "/api/links/*"
       ]
     }
   }
-
 }
 
-
-# Analytics
+# Analytics Target Group
 resource "aws_lb_target_group" "analytics_tg" {
   name        = "analytics-service-tg"
   port        = 4000
@@ -334,9 +319,11 @@ resource "aws_lb_target_group" "analytics_tg" {
     path = "/health"
   }
 }
+
+# Analytics Listener Rule
 resource "aws_lb_listener_rule" "analytics_rule" {
   listener_arn = aws_lb_listener.http.arn
-  priority     = 20
+  priority     = 20  # Must be unique and higher than link-rule
 
   action {
     type             = "forward"
@@ -345,10 +332,14 @@ resource "aws_lb_listener_rule" "analytics_rule" {
 
   condition {
     path_pattern {
-      values = ["/api/analytics/*"]
+      values = [
+        "/api/analytics",
+        "/api/analytics/*"
+      ]
     }
   }
 }
+
 
 # ----------------------------
 # ECS EC2 Cluster
@@ -494,20 +485,25 @@ EOT
 }
 
 resource "aws_autoscaling_group" "ecs" {
-  desired_capacity    = 1
-  min_size            = 1
-  max_size            = 1
-  vpc_zone_identifier = [
-    aws_subnet.public_1.id,
-    aws_subnet.public_2.id
-  ]
-
-
+  name                      = "ecs-cluster-asg"
+  max_size                  = 2
+  min_size                  = 2
+  desired_capacity          = 2
+  vpc_zone_identifier       = [aws_subnet.public_1.id, aws_subnet.public_2.id]
   launch_template {
     id      = aws_launch_template.ecs.id
     version = "$Latest"
   }
+
+  health_check_type         = "EC2"
+  force_delete              = true
+  tag{
+      key                 = "Name"
+      value               = "ecs-instance"
+      propagate_at_launch = true
+    }
 }
+
 
 # Cloud map
 resource "aws_service_discovery_private_dns_namespace" "internal" {
