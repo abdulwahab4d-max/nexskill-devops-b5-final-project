@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 
 const LINK_SERVICE_URL = "/api";
-const ANALYTICS_SERVICE_URL = process.env.REACT_APP_ANALYTICS_SERVICE_URL || 'http://analytics-service:4000';
+const ANALYTICS_SERVICE_URL = "/api";
 
 
 function App() {
