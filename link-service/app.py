@@ -100,32 +100,41 @@ def shorten_url():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/<short_code>', methods=['GET'])
+def redirect_short(short_code):
+    return redirect_url(short_code)
+
+
 @app.route('/api/links/<short_code>', methods=['GET'])
 def redirect_url(short_code):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('SELECT original_url FROM links WHERE short_code = %s', (short_code,))
+        cur.execute(
+            'SELECT original_url FROM links WHERE short_code = %s',
+            (short_code,)
+        )
         result = cur.fetchone()
         cur.close()
         conn.close()
-        
-        if result:
-            original_url = result[0]
-            
-            try:
-                requests.post(
-                    f'{Config.ANALYTICS_SERVICE_URL}/track',
-                    json={'short_code': short_code},
-                    timeout=2
-                )
-                print(f"Tracked click for {short_code}, status: {resp.status_code}")
-            except Exception as e:
-                print(f"Analytics tracking failed: {e}")
-            
-            return redirect(original_url)
-        else:
+
+        if not result:
             return jsonify({'error': 'URL not found'}), 404
+
+        original_url = result[0]
+
+        try:
+            resp = requests.post(
+                f"{Config.ANALYTICS_SERVICE_URL}/api/track",
+                json={"short_code": short_code},
+                timeout=2
+            )
+            print(f"Tracked {short_code} → {resp.status_code}")
+        except Exception as e:
+            print(f"Analytics failed: {e}")
+
+        return redirect(original_url)
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
