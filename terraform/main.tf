@@ -542,7 +542,7 @@ resource "aws_ecs_task_definition" "link_service" {
   container_definitions = jsonencode([
     {
       name      = "link-service"
-      image     = "docker.io/abdulwahab4d/url-shorten-final-project:link-service-latest"
+      image     = "docker.io/abdulwahab4d/url-shorten-final-project:link-service-ci-${var.link_service_tag}"
       essential = true
       portMappings = [{
         containerPort = 3000
@@ -590,7 +590,7 @@ resource "aws_ecs_task_definition" "frontend" {
   container_definitions = jsonencode([
     {
       name      = "frontend"
-      image     = "docker.io/abdulwahab4d/url-shorten-final-project:frontend-latest"
+      image     = "docker.io/abdulwahab4d/url-shorten-final-project:frontend-ci-${var.frontend_tag}"
       essential = true
       portMappings = [{
         containerPort = 80
@@ -626,7 +626,7 @@ resource "aws_ecs_task_definition" "analytics" {
   container_definitions = jsonencode([
     {
       name      = "analytics"
-      image     = "docker.io/abdulwahab4d/url-shorten-final-project:analytics-service-latest"
+      image     = "docker.io/abdulwahab4d/url-shorten-final-project:analytics-service-ci-${var.analytics_tag}"
       essential = true
       portMappings = [{
         containerPort = 4000
