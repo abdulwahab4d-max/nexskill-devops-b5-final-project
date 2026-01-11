@@ -115,7 +115,7 @@ def redirect_url(short_code):
             
             try:
                 requests.post(
-                    f'{Config.ANALYTICS_SERVICE_URL}/api/track',
+                    f'{Config.ANALYTICS_SERVICE_URL}/track',
                     json={'short_code': short_code},
                     timeout=2
                 )

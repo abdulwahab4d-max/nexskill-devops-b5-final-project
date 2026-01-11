@@ -12,3 +12,18 @@ terraform {
     region = "eu-north-1"
   }
 }
+
+variable "link_service_tag" {
+  type        = string
+  description = "Link service image tag"
+}
+
+variable "frontend_tag" {
+  type        = string
+  description = "Frontend image tag"
+}
+
+variable "analytics_tag" {
+  type        = string
+  description = "Analytics service image tag"
+}
