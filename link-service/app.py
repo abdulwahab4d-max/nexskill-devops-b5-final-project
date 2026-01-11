@@ -67,6 +67,39 @@ def generate_short_code(url):
 def health():
     return jsonify({'status': 'healthy'}), 200
 
+@app.route('/api/shorten', methods=['POST'])
+def shorten_url():
+    data = request.json
+    original_url = data.get('url')
+    
+    if not original_url:
+        return jsonify({'error': 'URL is required'}), 400
+    
+    short_code = generate_short_code(original_url)
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute('SELECT short_code FROM links WHERE original_url = %s', (original_url,))
+        existing = cur.fetchone()
+        
+        if existing:
+            short_code = existing[0]
+        else:
+            cur.execute(
+                'INSERT INTO links (original_url, short_code) VALUES (%s, %s)',
+                (original_url, short_code)
+            )
+            conn.commit()
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({'short_code': short_code, 'short_url': f'/{short_code}'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/<short_code>', methods=['GET'])
 def redirect_short(short_code):
     return redirect_url(short_code)
@@ -92,7 +125,7 @@ def redirect_url(short_code):
 
         try:
             resp = requests.post(
-                f"{Config.ANALYTICS_SERVICE_URL}/track",
+                f"{Config.ANALYTICS_SERVICE_URL}/api/track",
                 json={"short_code": short_code},
                 timeout=2
             )
