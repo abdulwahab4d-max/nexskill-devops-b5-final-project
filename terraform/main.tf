@@ -335,6 +335,7 @@ resource "aws_lb_listener_rule" "analytics_rule" {
       values = [
         "/api/analytics",
         "/api/analytics/*",
+        "/api/analytics/track",
         "/api/analytics/track*"
       ]
     }
