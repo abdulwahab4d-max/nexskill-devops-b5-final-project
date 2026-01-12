@@ -18,6 +18,11 @@ function App() {
     fetchAnalytics();
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(fetchAnalytics, 5000); // every 5s
+    return () => clearInterval(interval); // cleanup on unmount
+  }, []);
+
   const fetchLinks = async () => {
     try {
       const response = await fetch(`${LINK_SERVICE_URL}/api/links`);
