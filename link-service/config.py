@@ -9,6 +9,6 @@ class Config:
     DATABASE_PASSWORD = os.getenv('DB_PASSWORD', '<DB_PASSWORD>')
     ANALYTICS_SERVICE_URL = os.getenv(
         "ANALYTICS_SERVICE_URL",
-        "node-alb-639787847.eu-north-1.elb.amazonaws.com/api/analytics"
+        "http://node-alb-639787847.eu-north-1.elb.amazonaws.com/api/analytics"
     )
     PORT = int(os.getenv('PORT', 3000))
