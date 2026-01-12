@@ -55,7 +55,8 @@ function App() {
       if (response.ok) {
         setShortUrl(`${LINK_SERVICE_URL}/api/links/${data.short_url}`);
         setUrl('');
-        fetchLinks();
+        await fetchLinks();
+        await fetchAnalytics();
       } else {
         setError(data.error || 'Failed to shorten URL');
       }
