@@ -334,7 +334,7 @@ resource "aws_lb_listener_rule" "analytics_rule" {
     path_pattern {
       values = [
         "/api/analytics",
-        "/api/analytics/*"
+        "/api/analytics/*",
         "/api/analytics/track*"
       ]
     }
