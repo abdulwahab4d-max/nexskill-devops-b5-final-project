@@ -32,7 +32,7 @@ app.get('/health', (req, res) => {
     res.json({ status: 'healthy' });
 });
 
-app.post('/api/track', async (req, res) => {
+app.post('/api/analytics/track', async (req, res) => {
     const { short_code } = req.body;
     
     if (!short_code) {
