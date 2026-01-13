@@ -8,6 +8,35 @@ resource "aws_vpc" "main" {
 
   tags = { Name = "main-vpc" }
 }
+#CloudWatch Metrics endpoint
+resource "aws_vpc_endpoint" "cloudwatch_metrics" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.eu-north-1.monitoring"
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids         = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+  security_group_ids = [aws_security_group.ecs_sg.id]
+}
+#CloudWatch Logs endpoint
+resource "aws_vpc_endpoint" "cloudwatch_logs" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.eu-north-1.logs"
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids         = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+  security_group_ids = [aws_security_group.ecs_sg.id]
+}
+#STS endpoint (required for IAM role auth)
+resource "aws_vpc_endpoint" "sts" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.eu-north-1.sts"
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids         = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+  security_group_ids = [aws_security_group.ecs_sg.id]
+}
+
+
 
 # ----------------------------
 # Internet Gateway
@@ -175,6 +204,13 @@ resource "aws_security_group" "ecs_sg" {
   protocol        = "tcp"
   security_groups = [aws_security_group.alb_sg.id]
 }
+ingress {
+  description     = "Grafana from ALB"
+  from_port       = 5000
+  to_port         = 5000
+  protocol        = "tcp"
+  security_groups = [aws_security_group.alb_sg.id]
+}
 
 
 
@@ -193,6 +229,13 @@ resource "aws_security_group" "ecs_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
 
   tags = { Name = "ecs-task-sg" }
 }
@@ -342,6 +385,42 @@ resource "aws_lb_listener_rule" "analytics_rule" {
   }
 }
 
+# Grafana Target Group
+resource "aws_lb_target_group" "grafana_tg" {
+  name        = "grafana-tg"
+  port        = 5000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+
+  health_check {
+    path                = "/api/health"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    matcher             = "200-399"
+  }
+}
+
+# Grafana Listener Rule
+resource "aws_lb_listener_rule" "grafana_rule" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 25  # Must be higher than other rules
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.grafana_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/grafana*", "/grafana/*"]
+    }
+  }
+}
+
+
 
 # ----------------------------
 # ECS EC2 Cluster
@@ -374,6 +453,42 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_attach" {
 resource "aws_iam_instance_profile" "ecs_profile" {
   role = aws_iam_role.ecs_instance_role.name
 }
+
+resource "aws_iam_role_policy" "grafana_cloudwatch_full" {
+  name = "grafana-cloudwatch-access"
+  role = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetMetricData",
+          "cloudwatch:GetMetricStatistics",
+          "cloudwatch:DescribeAlarms",
+          "logs:DescribeLogGroups",
+          "logs:GetLogEvents",
+          "logs:StartQuery",
+          "logs:StopQuery",
+          "logs:GetQueryResults",
+          "ec2:DescribeInstances",
+          "ec2:DescribeRegions",
+          "ecs:DescribeClusters",
+          "ecs:DescribeServices",
+          "ecs:DescribeTasks",
+          "ecs:ListClusters",
+          "ecs:ListServices",
+          "ecs:ListTasks",
+          "sts:GetCallerIdentity"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 
 # ECS Task Role (for secrets)
 resource "aws_iam_role" "ecs_task_role" {
@@ -663,6 +778,49 @@ resource "aws_ecs_task_definition" "analytics" {
   ])
 }
 
+resource "aws_ecs_task_definition" "grafana" {
+  family                   = "grafana-task"
+  requires_compatibilities = ["EC2"]
+  network_mode             = "awsvpc"
+  cpu                      = "256"
+  memory                   = "512"
+
+  task_role_arn      = aws_iam_role.ecs_task_role.arn
+  execution_role_arn = aws_iam_role.ecs_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "grafana"
+      image     = "grafana/grafana:10.4.2"
+      essential = true
+
+      portMappings = [{
+        containerPort = 5000
+      }]
+
+      environment = [
+        { name = "GF_SERVER_HTTP_PORT", value = "5000" },
+        { name = "GF_SERVER_ROOT_URL", value = "http://${aws_lb.alb.dns_name}/grafana" },
+        { name = "GF_SERVER_SERVE_FROM_SUB_PATH", value = "true" },
+        { name = "GF_SECURITY_ADMIN_USER", value = "admin" },
+        { name = "GF_SECURITY_ADMIN_PASSWORD", value = "admin" },
+        { name = "GF_AWS_REGION", value = "eu-north-1" },
+        { name = "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS", value = "cloudwatch" },
+        { name = "GF_PLUGINS_ENABLE_ALPHA", value = "true" }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/node-ec2-cluster"
+          awslogs-region        = "eu-north-1"
+          awslogs-stream-prefix = "grafana"
+        }
+      }
+    }
+  ])
+}
+
 
 # ----------------------------
 # ECS Service
@@ -732,6 +890,31 @@ resource "aws_ecs_service" "analytics" {
     aws_lb_listener_rule.analytics_rule
   ]
 }
+
+resource "aws_ecs_service" "grafana" {
+  name            = "grafana"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.grafana.arn
+  desired_count   = 1
+  launch_type     = "EC2"
+
+  network_configuration {
+    subnets         = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+    security_groups = [aws_security_group.ecs_sg.id]
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.grafana_tg.arn
+    container_name   = "grafana"
+    container_port   = 5000
+  }
+
+  depends_on = [
+    aws_lb_listener.http,
+    aws_lb_listener_rule.grafana_rule
+  ]
+}
+
 
 # ----------------------------
 # Outputs
