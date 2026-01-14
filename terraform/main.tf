@@ -472,6 +472,10 @@ resource "aws_lb_listener_rule" "grafana_rule" {
 # ----------------------------
 resource "aws_ecs_cluster" "main" {
   name = "node-ec2-cluster"
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 # ----------------------------
