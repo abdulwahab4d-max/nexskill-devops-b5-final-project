@@ -1,89 +1,180 @@
-# URL Shortener - Microservices Application
+# 🚀 URL Shortener – Production-Grade DevOps Project
 
-A simple microservices-based URL shortener built with Python, Node.js, and React.
+## 📌 Overview
 
-## Services
+This project is a **production-ready microservices-based URL Shortener** deployed on **AWS** using **Terraform, ECS (EC2 launch type), ALB, RDS, CI/CD, Blue–Green Deployment, and Observability with Grafana**.
 
-- **Link Service** (Python/Flask) - Port 3000
-- **Analytics Service** (Node.js/Express) - Port 4000
-- **Frontend** (React) - Port 80/3000
+The system is fully automated: **a simple `git push` triggers build, test, image creation, and zero-downtime deployment**. New versions typically go live within **3–4 minutes**.
 
-## Prerequisites
+---
 
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL (remote database provided)
+EC2 Instance: 3 x m5.large
+AWS DataBase
+AWS Clouwatch used for grafana
+Total Resources Terraform Create: 50+
 
-## Database Credentials
-```
-Host: 8.222.170.22
-Port: 5432
-Database: urlshortener
-User: postgres
-Password: postgres
-```
+All creditentials are safe in repository secrets
 
-**Note:** These credentials are needed to be configured in:
-- `link-service/config.py`
-- `analytics-service/config.js`
+## 🏗️ Architecture
 
-These changes are needed to use the correct database.
+### Microservices
 
-## Setup and Run
+| Service           | Port | Responsibility             |
+| ----------------- | ---- | -------------------------- |
+| Frontend          | 80   | UI for shortening URLs     |
+| Link Service      | 3000 | URL creation & redirection |
+| Analytics Service | 4000 | Click tracking & metrics   |
+| PostgreSQL (RDS)  | 5432 | Persistent storage         |
+| Grafana           | 5000 | Analytics visualization    |
 
-### 1. Link Service
+### High-Level Flow
+
+1. User accesses the app via **Application Load Balancer (ALB)**
+2. ALB routes traffic using **path-based routing**
+3. ECS services process requests
+4. Click events are tracked asynchronously
+5. Metrics are visualized in **Grafana**
+
+---
+
+## 🌐 Load Balancer – Path-Based Routing
+
+| Path               | Target Service    |
+| ------------------ | ----------------- |
+| `/`                | Frontend          |
+| `/grafana`         | Grafana           |
+| `/api/shorten`     | Link Service      |
+| `/api/links/*`     | Link Service      |
+| `/api/analytics/*` | Analytics Service |
+
+This allows **multiple services behind a single ALB** without extra DNS or ports.
+
+---
+
+## 🔐 Networking & Security
+
+* Custom **VPC** with public & private subnets
+* **ALB** in public subnets
+* **ECS tasks** isolated via security groups
+* **RDS PostgreSQL** protected by ECS-only access
+* Containers use **awsvpc network mode** (each task gets its own ENI)
+
+---
+
+## ⚙️ Infrastructure as Code (Terraform)
+
+Terraform provisions:
+
+* VPC, subnets, route tables, NAT & IGW
+* Application Load Balancer & listener rules
+* ECS Cluster (EC2)
+* Launch Template & Auto Scaling Group
+* ECS Task Definitions & Services
+* IAM roles (execution, task, EC2)
+* CloudWatch Log Groups
+
+All infrastructure is **fully reproducible** using:
+
 ```bash
-cd link-service
-python3 -m venv .
-. ./bin/activate
-pip3 install -r requirements.txt
-python3 app.py
+terraform init
+terraform apply
 ```
 
-Runs on: http://localhost:3000
+---
 
-### 2. Analytics Service
-```bash
-cd analytics-service
-npm install
-npm start
-```
+## 🔄 CI/CD Pipeline (GitHub Actions)
 
-Runs on: http://localhost:4000
+### Continuous Integration (CI)
 
-### 3. Frontend
-```bash
-cd frontend
-npm install
+Triggered on **every git push**:
 
-# Create .env file
-echo "REACT_APP_LINK_SERVICE_URL=http://localhost:3000" > .env
-echo "REACT_APP_ANALYTICS_SERVICE_URL=http://localhost:4000" >> .env
+* Build Docker images for all services
+* Tag images using commit ci number
+* Push images to Docker Hub
 
-npm start
-```
+### Continuous Deployment (CD – Blue/Green)
 
-Runs on: http://localhost:3000 (React dev server)
+* ECS service deploys **new task revision** alongside old one
+* ALB gradually routes traffic to new containers
+* Old containers are terminated after success
+* **Zero downtime deployment**
 
-**Note:** 3000 is the default port, however the Link Service uses the same port. In such a case, frontend will prompt to use a different port
+⏱️ **Deployment time:** ~3–4 minutes from push to live
 
-## Testing
+---
 
-1. Open http://localhost:3000 in browser
-2. Enter a long URL and click "Shorten"
-3. Click the generated short link to test redirection
-4. Refresh the page to see updated click counts
+## 🟦🟩 Blue–Green Deployment
 
-## API Endpoints
+**Why Blue–Green?**
 
-### Link Service (Port 3000)
-- `GET /health` - Health check
-- `POST /api/shorten` - Create short URL
-- `GET /:short_code` - Redirect to original URL
-- `GET /api/links` - Get all links
+* No service interruption
+* Safe rollback
+* Production-grade deployment strategy
 
-### Analytics Service (Port 4000)
-- `GET /health` - Health check
-- `POST /api/track` - Track a click
-- `GET /api/analytics/:short_code` - Get analytics for specific link
-- `GET /api/analytics` - Get all analytics
+**Flow:**
+
+1. New image is built & pushed
+2. ECS creates new tasks (Green)
+3. ALB health checks pass
+4. Traffic shifts automatically
+5. Old tasks (Blue) are removed
+
+---
+
+## 📊 Observability – Grafana
+
+Grafana is integrated with the **Analytics Service**:
+
+* Tracks click counts per short URL
+* Real-time metrics
+* Used for validating system behavior
+
+This proves the system is **observable, not a black box**.
+
+---
+
+## 🧪 Debugging & Lessons Learned
+
+Key real-world issues solved:
+
+* ALB path mismatch causing 404s
+* Incorrect analytics endpoint routing
+* Container-to-container networking misunderstandings
+* ECS awsvpc ENI behavior
+* Security group port alignment
+
+These were fixed by:
+
+* Correct ALB listener rules
+* Centralized service routing via ALB
+* Proper environment variable configuration
+
+---
+
+## 📈 Future Improvements
+
+* HTTPS with ACM
+* WAF for rate limiting
+* Autoscaling policies for ECS services
+* Prometheus integration
+* Canary deployments
+
+---
+
+## 🧠 Key DevOps Skills Demonstrated
+
+✅ AWS (VPC, ECS, ALB, RDS, IAM)
+✅ Terraform (IaC)
+✅ Docker & Containers
+✅ CI/CD with GitHub Actions
+✅ Blue–Green Deployment
+✅ Observability (Grafana)
+✅ Debugging production issues
+
+---
+
+## 🏁 Final Note
+
+This is a **real-world DevOps project**, designed, deployed, debugged, and monitored like a production system.
+
+**Mashallah — project completed successfully.** 🚀
