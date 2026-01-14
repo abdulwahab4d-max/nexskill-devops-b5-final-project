@@ -10,31 +10,64 @@ resource "aws_vpc" "main" {
 }
 #CloudWatch Metrics endpoint
 resource "aws_vpc_endpoint" "cloudwatch_metrics" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.eu-north-1.monitoring"
-  vpc_endpoint_type = "Interface"
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.eu-north-1.monitoring"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
 
-  subnet_ids         = [aws_subnet.public_1.id, aws_subnet.public_2.id]
-  security_group_ids = [aws_security_group.ecs_sg.id]
+  subnet_ids = [
+    aws_subnet.private_1.id,
+    aws_subnet.private_2.id
+  ]
+
+  security_group_ids = [aws_security_group.vpce_sg.id]
 }
+
 #CloudWatch Logs endpoint
 resource "aws_vpc_endpoint" "cloudwatch_logs" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.eu-north-1.logs"
-  vpc_endpoint_type = "Interface"
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.eu-north-1.logs"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
 
-  subnet_ids         = [aws_subnet.public_1.id, aws_subnet.public_2.id]
-  security_group_ids = [aws_security_group.ecs_sg.id]
+  subnet_ids = [
+    aws_subnet.private_1.id,
+    aws_subnet.private_2.id
+  ]
+
+  security_group_ids = [aws_security_group.vpce_sg.id]
 }
+
 #STS endpoint (required for IAM role auth)
 resource "aws_vpc_endpoint" "sts" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.eu-north-1.sts"
-  vpc_endpoint_type = "Interface"
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.eu-north-1.sts"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
 
-  subnet_ids         = [aws_subnet.public_1.id, aws_subnet.public_2.id]
-  security_group_ids = [aws_security_group.ecs_sg.id]
+  subnet_ids = [
+    aws_subnet.private_1.id,
+    aws_subnet.private_2.id
+  ]
+
+  security_group_ids = [aws_security_group.vpce_sg.id]
 }
+
+# EC2 Endpoint
+resource "aws_vpc_endpoint" "ec2" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.eu-north-1.ec2"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+
+  subnet_ids = [
+    aws_subnet.private_1.id,
+    aws_subnet.private_2.id
+  ]
+
+  security_group_ids = [aws_security_group.vpce_sg.id]
+}
+
 
 
 
@@ -229,13 +262,6 @@ ingress {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  egress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
 
   tags = { Name = "ecs-task-sg" }
 }
@@ -272,6 +298,25 @@ resource "aws_db_subnet_group" "main" {
     aws_subnet.public_1.id,
     aws_subnet.public_2.id
   ]
+}
+# Endpoint Security Group
+resource "aws_security_group" "vpce_sg" {
+  name   = "vpce-sg"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 
@@ -791,7 +836,7 @@ resource "aws_ecs_task_definition" "grafana" {
   container_definitions = jsonencode([
     {
       name      = "grafana"
-      image     = "grafana/grafana:10.4.2"
+      image     = "grafana/grafana:10.4.3"
       essential = true
 
       portMappings = [{
