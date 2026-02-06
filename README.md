@@ -8,7 +8,7 @@ The system is fully automated: **a simple `git push` triggers build, test, image
 
 ---
 
-EC2 Instance: 3 x m5.large
+EC2 Instance: 3 x m5.large (2 functional & 1 standby)
 AWS DataBase
 AWS Clouwatch used for grafana
 Total Resources Terraform Create: 50+
